@@ -10,23 +10,35 @@ class Variable:
         self.data = data
         self.grad = None
         self.creator = None
+        self.generation = 0
     
     def set_creator(self, func):
         self.creator = func
+        self.generation = func.generation + 1
     
+    def cleargrad(self):
+        self.grad = None
+
     def backward(self):
         if self.grad is None:
             self.grad = np.ones_like(self.data)
         
-        funcs = [self.creator]
+        funcs = []
+        seen_set = set()
+
+        def add_func(f):
+            if f not in seen_set:
+                funcs.append(f)
+                seen_set.add(f)
+                funcs.sort(key=lambda x: x.generation)
+        
+        add_func(self.creator)
+
         while funcs:
             f = funcs.pop()
 
             gys = [output.grad for output in f.outputs]
             gxs = f.backward(*gys)
-            # parameter 정의할 때와 argument로 사용할 때의 *(asterisk)의 동작 방식이 다름
-            # parameter: positional arguments에 대한 가변 인자 활용
-            # argument: list unpack
 
             if not isinstance(gxs, tuple):
                 gxs = (gxs,)
@@ -34,10 +46,13 @@ class Variable:
             # 그리고 forward는 Function 클래스에서 wrap하고, backward는 Variable 클래스에서 wrap하고 있는데 개발하는 입장에서는 매우 불편한 설계인 것 같다
 
             for x, gx in zip(f.inputs, gxs):
-                x.grad = gx
+                if x.grad is None:
+                    x.grad = gx
+                else:
+                    x.grad = x.grad + gx
 
                 if x.creator is not None:
-                    funcs.append(x.creator)
+                    add_func(x.creator)
 
 
 class Function:
@@ -49,6 +64,8 @@ class Function:
             ys = (ys,)
 
         outputs = [Variable(as_array(y)) for y in ys]
+        self.generation = max([x.generation for x in inputs])
+        # 입력 변수가 둘 이상이라면 가장 큰 generation의 수를 선택
         for output in outputs:
             output.set_creator(self)
 

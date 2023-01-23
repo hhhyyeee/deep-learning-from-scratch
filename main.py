@@ -18,11 +18,11 @@ def exp(x):
 
 if __name__ == '__main__':
 
-    x = Variable(np.array(0.5))
-    print(type(x.data))
-
-    y = square(exp(square(x)))
-
+    x = Variable(np.array(2.0))
+    a = square(x)
+    y = add(square(a), square(a))
     y.backward()
+
+    print(y.data)
     print(x.grad)
 
