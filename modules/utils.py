@@ -21,11 +21,23 @@ class Variable:
         funcs = [self.creator]
         while funcs:
             f = funcs.pop()
-            x, y = f.input, f.output
-            x.grad = f.backward(y.grad)
 
-            if x.creator is not None:
-                funcs.append(x.creator)
+            gys = [output.grad for output in f.outputs]
+            gxs = f.backward(*gys)
+            # parameter 정의할 때와 argument로 사용할 때의 *(asterisk)의 동작 방식이 다름
+            # parameter: positional arguments에 대한 가변 인자 활용
+            # argument: list unpack
+
+            if not isinstance(gxs, tuple):
+                gxs = (gxs,)
+            # forward, backward 함수 둘 다 리턴되는 값의 길이가 1일 경우 wrapping 해주는 코드가 삽입되어 있는데 꼭 이렇게 번거롭게 해야 하는 걸까?
+            # 그리고 forward는 Function 클래스에서 wrap하고, backward는 Variable 클래스에서 wrap하고 있는데 개발하는 입장에서는 매우 불편한 설계인 것 같다
+
+            for x, gx in zip(f.inputs, gxs):
+                x.grad = gx
+
+                if x.creator is not None:
+                    funcs.append(x.creator)
 
 
 class Function:
