@@ -1,3 +1,4 @@
+import heapq
 import numpy as np
 
 
@@ -11,6 +12,8 @@ class Variable:
         self.grad = None
         self.creator = None
         self.generation = 0
+
+        self.count = 0
     
     def set_creator(self, func):
         self.creator = func
@@ -28,14 +31,17 @@ class Variable:
 
         def add_func(f):
             if f not in seen_set:
-                funcs.append(f)
+                # funcs.append(f)
+                heapq.heappush(funcs, (-f.generation, self.count, f))
+                self.count += 1
                 seen_set.add(f)
-                funcs.sort(key=lambda x: x.generation)
-        
+                # funcs.sort(key=lambda x: x.generation)
+
         add_func(self.creator)
 
         while funcs:
-            f = funcs.pop()
+            # f = funcs.pop()
+            f = heapq.heappop(funcs)[2]
 
             gys = [output.grad for output in f.outputs]
             gxs = f.backward(*gys)
