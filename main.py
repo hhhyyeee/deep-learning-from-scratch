@@ -1,12 +1,12 @@
-import sys
+if '__file__' in globals():
+
+    import os, sys
+    sys.path.append(os.path.join(os.path.dirname(__file__)))
+    PROJECT_DIR = '/Users/hyewon/Documents/Projects/deep-learning-from-scratch/DeZero'
+    sys.path.append(PROJECT_DIR)
+
 import numpy as np
-
-PROJECT_DIR = '/Users/hyewon/Documents/Projects/deep-learning-from-scratch/DeZero'
-sys.path.append(PROJECT_DIR)
-
-from modules.funcs import *
-from modules.utils import *
-from modules.test import *
+from dezero.core_simple import *
 
 
 def square(x):

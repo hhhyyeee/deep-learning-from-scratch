@@ -3,9 +3,12 @@ import weakref
 import contextlib
 import numpy as np
 
-from modules.funcs import *
+
+class Config:
+    enable_backprop = True
 
 
+# -----
 class Variable:
     def __init__(self, data, name=None):
         if data is not None:
@@ -103,6 +106,7 @@ class Variable:
                     y().grad = None
 
 
+# -----
 class Function:
     def __call__(self, *inputs):
         inputs = [as_variable(x) for x in inputs]
@@ -131,32 +135,39 @@ class Function:
         raise NotImplementedError
 
 
-def as_array(x):
-    if np.isscalar(x):
-        return np.array(x)
-    return x
-
-def as_variable(obj):
-    if isinstance(obj, Variable):
-        return obj
-    else:
-        return Variable(obj)
-
 # -----
-def square(x):
-    return Square()(x)
+class Add(Function):
+    def forward(self, x0, x1):
+        y = x0 + x1
+        return y
+    
+    def backward(self, gy):
+        return gy, gy
 
-def exp(x):
-    return Exp()(x)
+class Mul(Function):
+    def forward(self, x0, x1):
+        y = x0 * x1
+        return y
+    
+    def backward(self, gy):
+        x0, x1 = self.inputs[0].data, self.inputs[1].data
+        return gy * x1, gy * x0
 
-def add(x0, x1):
-    return Add()(x0, x1)
+class Neg(Function):
+    pass
 
-def mul(x0, x1):
-    return Mul()(x0, x1)
+class Sub(Function):
+    pass
 
-def divide(numer, denom):
-    return Divide()(numer, denom)
+class Div(Function):
+    def forward(self, numer, denom):
+        if denom.data == 0:
+            raise ZeroDivisionError
+        y = numer / denom
+        return y
+
+class Pow(Function):
+    pass
 
 class Square(Function):
     def forward(self, x):
@@ -176,33 +187,62 @@ class Exp(Function):
         gx = np.exp(x) * gy
         return gx
 
-class Add(Function):
-    def forward(self, x0, x1):
-        y = x0 + x1
-        return y
-    
-    def backward(self, gy):
-        return gy, gy
-
-class Mul(Function):
-    def forward(self, x0, x1):
-        y = x0 * x1
-        return y
-    
-    def backward(self, gy):
-        x0, x1 = self.inputs[0].data, self.inputs[1].data
-        return gy * x1, gy * x0
-
-class Divide(Function):
-    def forward(self, numer, denom):
-        if denom.data == 0:
-            raise ZeroDivisionError
-        y = numer / denom
-        return y
 # -----
+@contextlib.contextmanager
+# with 블록에 들어갈 때 name으로 지정한 Config 클래스 속성이 value로 설정
+# with 블록을 빠져나오면서 원래 값(old_value)로 복원
+def using_config(name, value):
+    old_value = getattr(Config, name)
+    setattr(Config, name, value)
+    try:
+        yield
+    finally:
+        setattr(Config, name, old_value)
+
+def no_grad():
+    return using_config('enable_backprop', False)
+
+def as_array(x):
+    if np.isscalar(x):
+        return np.array(x)
+    return x
+
+def as_variable(obj):
+    if isinstance(obj, Variable):
+        return obj
+    else:
+        return Variable(obj)
+
+def add(x0, x1):
+    return Add()(x0, x1)
+
+def mul(x0, x1):
+    return Mul()(x0, x1)
+
+def neg():
+    pass
+
+def sub():
+    pass
+
+def div(numer, denom):
+    return Div()(numer, denom)
+
+def rdiv():
+    pass
+
+def pow():
+    pass
+
+def square(x):
+    return Square()(x)
+
+def exp(x):
+    return Exp()(x)
 
 
 # -----
-class Config:
-    enable_backprop = True
+def setup_variable():
+    Variable.__add__ = add
+    Variable.__mul__ = mul
 
