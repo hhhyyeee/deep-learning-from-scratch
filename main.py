@@ -19,8 +19,8 @@ def exp(x):
 if __name__ == '__main__':
 
     x = Variable(np.array(2.0))
-    a = square(x)
-    y = add(square(a), square(a))
+    y = x + np.array(2.0)
+    print(y.data)
     y.backward()
 
     print(y.data)
