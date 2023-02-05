@@ -1,4 +1,6 @@
 import heapq
+import weakref
+import contextlib
 import numpy as np
 
 
@@ -22,7 +24,7 @@ class Variable:
     def cleargrad(self):
         self.grad = None
 
-    def backward(self):
+    def backward(self, retain_grad=False):
         if self.grad is None:
             self.grad = np.ones_like(self.data)
         
@@ -31,19 +33,16 @@ class Variable:
 
         def add_func(f):
             if f not in seen_set:
-                # funcs.append(f)
                 heapq.heappush(funcs, (-f.generation, self.count, f))
                 self.count += 1
                 seen_set.add(f)
-                # funcs.sort(key=lambda x: x.generation)
 
         add_func(self.creator)
 
         while funcs:
-            # f = funcs.pop()
             f = heapq.heappop(funcs)[2]
 
-            gys = [output.grad for output in f.outputs]
+            gys = [output().grad for output in f.outputs]
             gxs = f.backward(*gys)
 
             if not isinstance(gxs, tuple):
@@ -59,6 +58,12 @@ class Variable:
 
                 if x.creator is not None:
                     add_func(x.creator)
+            
+            if not retain_grad:
+                for y in f.outputs():
+                    # f.outputs() 리스트가 약한 참조(weakref)이기 떄문에 y()로 사용
+                    # 참조 카운트가 0이 되고 메모리에서 데이터가 삭제됨
+                    y().grad = None
 
 
 class Function:
@@ -70,13 +75,28 @@ class Function:
             ys = (ys,)
 
         outputs = [Variable(as_array(y)) for y in ys]
-        self.generation = max([x.generation for x in inputs])
-        # 입력 변수가 둘 이상이라면 가장 큰 generation의 수를 선택
-        for output in outputs:
-            output.set_creator(self)
 
-        self.inputs = inputs
-        self.outputs = outputs
+        # with 블록에 들어갈 때 name으로 지정한 Config 클래스 속성이 value로 설정
+        # with 블록을 빠져나오면서 원래 값(old_value)로 복원
+        @contextlib.contextmanager
+        def using_config(name, value):
+            old_value = getattr(Config, name)
+            setattr(Config, name, value)
+            try:
+                yield
+            finally:
+                setattr(Config, name, old_value)
+
+        def no_grad():
+            return using_config('enable_backprop', False)
+
+        if Config.enable_backprop:
+            self.generation = max([x.generation for x in inputs])
+            for output in outputs:
+                output.set_creator(self)
+
+            self.inputs = inputs
+            self.outputs = [weakref.ref(output) for output in outputs]
 
         return outputs if len(outputs) > 1 else outputs[0]
 
@@ -91,4 +111,8 @@ def as_array(x):
     if np.isscalar(x):
         return np.array(x)
     return x
+
+
+class Config:
+    enable_backprop = True
 
