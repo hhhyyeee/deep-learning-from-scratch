@@ -19,10 +19,6 @@ def exp(x):
 if __name__ == '__main__':
 
     x = Variable(np.array(2.0))
-    y = x + np.array(2.0)
-    print(y.data)
-    y.backward()
-
-    print(y.data)
-    print(x.grad)
+    y = pow(x, 3)
+    print(y)
 

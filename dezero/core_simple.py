@@ -10,6 +10,9 @@ class Config:
 
 # -----
 class Variable:
+
+    __array_priority__ = 200
+
     def __init__(self, data, name=None):
         if data is not None:
             if not isinstance(data, np.ndarray):
@@ -48,6 +51,7 @@ class Variable:
         if self.data is None:
             return 'variable(None)'
         p = str(self.data).replace('\n', '\n'+' '*9)
+        return p
 
     def set_creator(self, func):
         self.creator = func
@@ -55,12 +59,6 @@ class Variable:
     
     def cleargrad(self):
         self.grad = None
-
-    def __add__(self, other):
-        return add(self, other)
-
-    def __mul__(self, other):
-        return mul(self, other)
 
     """
     """
@@ -154,20 +152,43 @@ class Mul(Function):
         return gy * x1, gy * x0
 
 class Neg(Function):
-    pass
+    def forward(self, x):
+        return -x
 
 class Sub(Function):
-    pass
-
-class Div(Function):
-    def forward(self, numer, denom):
-        if denom.data == 0:
-            raise ZeroDivisionError
-        y = numer / denom
+    def forward(self, x0, x1):
+        y = x0 - x1
         return y
 
+    def backward(self, gy):
+        return gy, -gy
+
+class Div(Function):
+    def forward(self, x0, x1):
+        if x1.data == 0:
+            raise ZeroDivisionError
+        y = x0 / x1
+        return y
+    
+    def backward(self, gy):
+        x0, x1 = self.inputs[0], self.inputs[1]
+        gx0 = gy / x1
+        gx1 = gy * (-x0 / x1 ** 2)
+        return gx0, gx1
+
 class Pow(Function):
-    pass
+    def __init__(self, c):
+        self.c = c
+    
+    def forward(self, x):
+        y = x ** self.c
+        return y
+    
+    def backward(self, gy):
+        x = self.inputs[0].data
+        c = self.c
+        gx = c * x ** (c - 1) * gy
+        return gx
 
 class Square(Function):
     def forward(self, x):
@@ -214,25 +235,34 @@ def as_variable(obj):
         return Variable(obj)
 
 def add(x0, x1):
+    x1 = as_array(x1)
     return Add()(x0, x1)
 
 def mul(x0, x1):
+    x1 = as_array(x1)
     return Mul()(x0, x1)
 
-def neg():
-    pass
+def neg(x):
+    return Neg()(x)
 
-def sub():
-    pass
+def sub(x0, x1):
+    x1 = as_array(x1)
+    return Sub()(x0, x1)
 
-def div(numer, denom):
-    return Div()(numer, denom)
+def rsub(x0, x1):
+    x1 = as_array(x1)
+    return Sub()(x1, x0)
 
-def rdiv():
-    pass
+def div(x0, x1):
+    x1 = as_array(x1)
+    return Div()(x0, x1)
 
-def pow():
-    pass
+def rdiv(x0, x1):
+    x1 = as_array(x1)
+    return Div()(x1, x0)
+
+def pow(x, c):
+    return Pow(c)(x)
 
 def square(x):
     return Square()(x)
@@ -244,5 +274,12 @@ def exp(x):
 # -----
 def setup_variable():
     Variable.__add__ = add
+    Variable.__radd__ = add
     Variable.__mul__ = mul
-
+    Variable.__rmul__ = mul
+    Variable.__neg__ = neg
+    Variable.__sub__ = sub
+    Variable.__rsub__ = rsub
+    Variable.__truediv__ = div
+    Variable.__rtruediv__ = rdiv
+    Variable.__pow__ = pow
