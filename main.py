@@ -18,7 +18,9 @@ def exp(x):
 
 if __name__ == '__main__':
 
-    x = Variable(np.array(2.0))
-    y = pow(x, 3)
-    print(y)
+    x = Variable(np.array(1.0))
+    y = Variable(np.array(1.0))
+    z = goldstein(x, y)
+    z.backward()
+    print(x.grad, y.grad, z.grad)
 
