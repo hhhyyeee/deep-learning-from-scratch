@@ -6,14 +6,9 @@ if '__file__' in globals():
     sys.path.append(PROJECT_DIR)
 
 import numpy as np
+
 from dezero.core_simple import *
-
-
-def square(x):
-    return Square()(x)
-
-def exp(x):
-    return Exp()(x)
+from dezero.utils import plot_dot_graph
 
 
 if __name__ == '__main__':
@@ -22,5 +17,5 @@ if __name__ == '__main__':
     y = Variable(np.array(1.0))
     z = goldstein(x, y)
     z.backward()
-    print(x.grad, y.grad, z.grad)
 
+    plot_dot_graph(z)
