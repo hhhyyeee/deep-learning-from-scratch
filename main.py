@@ -13,9 +13,9 @@ from dezero.utils import plot_dot_graph
 
 if __name__ == '__main__':
 
-    x = Variable(np.array(1.0))
-    y = Variable(np.array(1.0))
-    z = goldstein(x, y)
-    z.backward()
+    x = Variable(np.array(np.pi / 4))
+    y = my_sin(x)
+    y.backward()
 
-    plot_dot_graph(z)
+    print(y.data)
+    print(x.grad)
