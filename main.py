@@ -13,9 +13,20 @@ from dezero.utils import plot_dot_graph
 
 if __name__ == '__main__':
 
-    x = Variable(np.array(np.pi / 4))
-    y = my_sin(x)
-    y.backward()
+    x0 = Variable(np.array(0.0))
+    x1 = Variable(np.array(2.0))
 
-    print(y.data)
-    print(x.grad)
+    lr = 0.001
+    iters = 1000
+
+    for i in range(iters):
+        print(x0, x1)
+
+        y = rosenbrock(x0, x1)
+
+        x0.cleargrad()
+        x1.cleargrad()
+        y.backward()
+
+        x0.data -= lr * x0.grad
+        x1.data -= lr * x1.grad
