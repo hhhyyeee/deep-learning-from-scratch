@@ -52,7 +52,7 @@ class Variable:
         if self.data is None:
             return 'variable(None)'
         p = str(self.data).replace('\n', '\n'+' '*9)
-        return p
+        return f"variable({p})"
 
     def set_creator(self, func):
         self.creator = func
@@ -211,16 +211,6 @@ class Exp(Function):
     def backward(self, gy):
         x, = self.inputs
         gx = np.exp(x) * gy
-        return gx
-
-class Sin(Function):
-    def forward(self, x):
-        y = np.sin(x)
-        return y
-    
-    def backward(self, gy):
-        x, = self.inputs
-        gx =  gy * np.cos(x)
         return gx
 
 # -----
