@@ -52,7 +52,7 @@ class Variable:
         if self.data is None:
             return 'variable(None)'
         p = str(self.data).replace('\n', '\n'+' '*9)
-        return p
+        return f"variable({p})"
 
     def set_creator(self, func):
         self.creator = func
@@ -63,9 +63,9 @@ class Variable:
 
     """
     """
-    def backward(self, retain_grad=False):
+    def backward(self, retain_grad=False, create_graph=False):
         if self.grad is None:
-            self.grad = np.ones_like(self.data)
+            self.grad = Variable(np.ones_like(self.data))
         
         funcs = []
         seen_set = set()
@@ -82,21 +82,22 @@ class Variable:
             f = heapq.heappop(funcs)[2]
 
             gys = [output().grad for output in f.outputs]
-            gxs = f.backward(*gys)
+            with using_config("enable_backprop", create_graph):
+                gxs = f.backward(*gys)
 
-            if not isinstance(gxs, tuple):
-                gxs = (gxs,)
-            # forward, backward 함수 둘 다 리턴되는 값의 길이가 1일 경우 wrapping 해주는 코드가 삽입되어 있는데 꼭 이렇게 번거롭게 해야 하는 걸까?
-            # 그리고 forward는 Function 클래스에서 wrap하고, backward는 Variable 클래스에서 wrap하고 있는데 개발하는 입장에서는 매우 불편한 설계인 것 같다
+                if not isinstance(gxs, tuple):
+                    gxs = (gxs,)
+                # forward, backward 함수 둘 다 리턴되는 값의 길이가 1일 경우 wrapping 해주는 코드가 삽입되어 있는데 꼭 이렇게 번거롭게 해야 하는 걸까?
+                # 그리고 forward는 Function 클래스에서 wrap하고, backward는 Variable 클래스에서 wrap하고 있는데 개발하는 입장에서는 매우 불편한 설계인 것 같다
 
-            for x, gx in zip(f.inputs, gxs):
-                if x.grad is None:
-                    x.grad = gx
-                else:
-                    x.grad = x.grad + gx
+                for x, gx in zip(f.inputs, gxs):
+                    if x.grad is None:
+                        x.grad = gx
+                    else:
+                        x.grad = x.grad + gx
 
-                if x.creator is not None:
-                    add_func(x.creator)
+                    if x.creator is not None:
+                        add_func(x.creator)
             
             if not retain_grad:
                 for y in f.outputs:
@@ -149,12 +150,15 @@ class Mul(Function):
         return y
     
     def backward(self, gy):
-        x0, x1 = self.inputs[0].data, self.inputs[1].data
+        x0, x1 = self.inputs
         return gy * x1, gy * x0
 
 class Neg(Function):
     def forward(self, x):
         return -x
+    
+    def backward(self, gy):
+        return -gy
 
 class Sub(Function):
     def forward(self, x0, x1):
@@ -172,7 +176,7 @@ class Div(Function):
         return y
     
     def backward(self, gy):
-        x0, x1 = self.inputs[0], self.inputs[1]
+        x0, x1 = self.inputs
         gx0 = gy / x1
         gx1 = gy * (-x0 / x1 ** 2)
         return gx0, gx1
@@ -186,7 +190,7 @@ class Pow(Function):
         return y
     
     def backward(self, gy):
-        x = self.inputs[0].data
+        x, = self.inputs
         c = self.c
         gx = c * x ** (c - 1) * gy
         return gx
@@ -196,7 +200,7 @@ class Square(Function):
         return x ** 2
     
     def backward(self, gy):
-        x = self.inputs[0].data
+        x, = self.inputs
         gx = 2 * x * gy
         return gx
 
@@ -205,18 +209,8 @@ class Exp(Function):
         return np.exp(x)
 
     def backward(self, gy):
-        x = self.input.data
+        x, = self.inputs
         gx = np.exp(x) * gy
-        return gx
-
-class Sin(Function):
-    def forward(self, x):
-        y = np.sin(x)
-        return y
-    
-    def backward(self, gy):
-        x = self.inputs[0].data
-        gx =  gy * np.cos(x)
         return gx
 
 # -----
