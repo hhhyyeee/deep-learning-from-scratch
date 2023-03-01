@@ -21,7 +21,7 @@ class Variable:
 
         self.data = data
         self.name = name
-        self.grad = Variable(np.ones_like(self.data))
+        self.grad = None
         self.creator = None
         self.generation = 0
 
@@ -65,7 +65,7 @@ class Variable:
     """
     def backward(self, retain_grad=False, create_graph=False):
         if self.grad is None:
-            self.grad = np.ones_like(self.data)
+            self.grad = Variable(np.ones_like(self.data))
         
         funcs = []
         seen_set = set()
@@ -156,6 +156,9 @@ class Mul(Function):
 class Neg(Function):
     def forward(self, x):
         return -x
+    
+    def backward(self, gy):
+        return -gy
 
 class Sub(Function):
     def forward(self, x0, x1):
@@ -187,7 +190,7 @@ class Pow(Function):
         return y
     
     def backward(self, gy):
-        x = self.inputs[0]
+        x, = self.inputs
         c = self.c
         gx = c * x ** (c - 1) * gy
         return gx
@@ -197,7 +200,7 @@ class Square(Function):
         return x ** 2
     
     def backward(self, gy):
-        x = self.inputs[0].data
+        x, = self.inputs
         gx = 2 * x * gy
         return gx
 
@@ -206,7 +209,7 @@ class Exp(Function):
         return np.exp(x)
 
     def backward(self, gy):
-        x = self.input.data
+        x, = self.inputs
         gx = np.exp(x) * gy
         return gx
 
@@ -216,7 +219,7 @@ class Sin(Function):
         return y
     
     def backward(self, gy):
-        x = self.inputs[0].data
+        x, = self.inputs
         gx =  gy * np.cos(x)
         return gx
 

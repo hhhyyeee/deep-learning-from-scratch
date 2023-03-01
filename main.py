@@ -7,26 +7,29 @@ if '__file__' in globals():
 
 import numpy as np
 
-from dezero.core_simple import *
+from dezero.core import *
 from dezero.utils import plot_dot_graph
 
 
 if __name__ == '__main__':
 
-    x0 = Variable(np.array(0.0))
-    x1 = Variable(np.array(2.0))
+    def f(x):
+        y = x ** 4 - 2 * x ** 2
+        return y
 
-    lr = 0.001
-    iters = 1000
+    x = Variable(np.array(2.0))
+    iters = 10
 
     for i in range(iters):
-        print(x0, x1)
+        print(i, x)
 
-        y = rosenbrock(x0, x1)
+        y = f(x)
+        x.cleargrad()
+        y.backward(create_graph=True)
 
-        x0.cleargrad()
-        x1.cleargrad()
-        y.backward()
+        gx = x.grad
+        x.cleargrad()
+        gx.backward()
+        gx2 = x.grad
 
-        x0.data -= lr * x0.grad
-        x1.data -= lr * x1.grad
+        x.data -= gx.data / gx2.data
