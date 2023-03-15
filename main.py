@@ -14,19 +14,8 @@ import matplotlib.pyplot as plt
 
 if __name__ == '__main__':
 
-    x = Variable(np.array(1.0))
-    y = F.tanh(x)
-    x.name = 'x'
-    y.name = 'y'
-    y.backward(create_graph=True)
-
-    iters = 5
-    for i in range(iters):
-        gx = x.grad
-        x.cleargrad()
-        gx.backward(create_graph=True)
-    
-    gx = x.grad
-    gx.name = f"gx{str(iters+1)}"
-    plot_dot_graph(gx, verbose=False, to_file='tanh.png')
-
+    x = Variable(np.random.randn(1, 2, 3))
+    y = x.reshape((2, 3))
+    print(y)
+    y = x.reshape(2, 3)
+    print(y)

@@ -4,6 +4,7 @@ import contextlib
 import numpy as np
 import math
 
+import dezero
 
 class Config:
     enable_backprop = True
@@ -104,6 +105,20 @@ class Variable:
                     # f.outputs() 리스트가 약한 참조(weakref)이기 떄문에 y()로 사용
                     # 참조 카운트가 0이 되고 메모리에서 데이터가 삭제됨
                     y().grad = None
+    
+    def reshape(self, *shape):
+        if len(shape) == 1 and isinstance(shape[0], (tuple, list)):
+            shape = shape[0]
+        # F.reshape으로 쓰지 않은 것은 순환 임포트를 피하기 위해서임
+        # dezero.functions에서 이미 core를 임포트해서 사용하고 있기 때문에
+        return dezero.functions.reshape(self, shape)
+    
+    def transpose(self):
+        return dezero.functions.transpose(self)
+    
+    @property
+    def T(self):
+        return dezero.functions.transpose(self)
 
 
 # -----
