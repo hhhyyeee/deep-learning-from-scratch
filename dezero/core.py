@@ -210,8 +210,9 @@ class Exp(Function):
 
     def backward(self, gy):
         x, = self.inputs
-        gx = np.exp(x) * gy
+        gx = exp(x) * gy
         return gx
+
 
 # -----
 @contextlib.contextmanager
