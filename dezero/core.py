@@ -109,9 +109,11 @@ class Variable:
     def reshape(self, *shape):
         if len(shape) == 1 and isinstance(shape[0], (tuple, list)):
             shape = shape[0]
-        # F.reshape으로 쓰지 않은 것은 순환 임포트를 피하기 위해서임
         # dezero.functions에서 이미 core를 임포트해서 사용하고 있기 때문에
+        # F.reshape으로 쓰지 않음으로써 순환 임포트를 피함
         return dezero.functions.reshape(self, shape)
+        # import dezero.functions as F
+        # return F.reshape(self, shape)
     
     def transpose(self):
         return dezero.functions.transpose(self)
@@ -120,6 +122,8 @@ class Variable:
     def T(self):
         return dezero.functions.transpose(self)
 
+    def sum(self, axis=None, keepdims=False):
+        return dezero.functions.sum(self)
 
 # -----
 class Function:
