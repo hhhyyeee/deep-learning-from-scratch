@@ -14,9 +14,10 @@ import matplotlib.pyplot as plt
 
 if __name__ == '__main__':
 
-    x = np.array([[1, 2, 3], [4, 5, 6]])
-    y = F.sum_to(x, (1, 3))
+    x0 = Variable(np.array([1, 2, 3]))
+    x1 = Variable(np.array([10]))
+    y = x0 + x1
     print(y)
 
-    y = F.sum_to(x, (2, 1))
-    print(y)
+    y.backward()
+    print(x1.grad)
