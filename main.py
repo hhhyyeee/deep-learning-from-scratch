@@ -14,8 +14,9 @@ import matplotlib.pyplot as plt
 
 if __name__ == '__main__':
 
-    x = Variable(np.random.randn(1, 2, 3))
-    y = x.reshape((2, 3))
+    x = np.array([[1, 2, 3], [4, 5, 6]])
+    y = F.sum_to(x, (1, 3))
     print(y)
-    y = x.reshape(2, 3)
+
+    y = F.sum_to(x, (2, 1))
     print(y)
