@@ -132,3 +132,26 @@ def sum_to(x, shape):
         return as_variable(x)
     return SumTo(shape)(x)
 
+
+class MatMul(Function):
+    def forward(self, x, W):
+        # x.dot(W) is equivalent to np.dot(x, W)
+        # but it is faster than np.dot
+        # because it uses BLAS (Basic Linear Algebra Subprograms)
+        # which is a collection of low-level routines for performing basic linear algebra operations
+        # such as matrix multiplication, vector multiplication, matrix addition, etc.
+        # https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms
+        # 이게 뭐지? ㅋㅋㅋ;;
+        # 이 지점에서 x.dot은 np.dot을 호출하는 것이다.
+        y = x.dot(W)
+        return y
+    
+    def backward(self, gy):
+        x, W = self.inputs
+        gx = matmul(gy, W.T)
+        gW = matmul(x.T, gy)
+        return gx, gW
+
+def matmul(x, W):
+    return MatMul()(x, W)
+
