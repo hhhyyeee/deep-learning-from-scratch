@@ -80,7 +80,6 @@ class Sum(Function):
         self.axis = axis
         self.keepdims = keepdims
 
-
     def forward(self, x):
         self.x_shape = x.shape
         y = x.sum(axis=self.axis, keepdims=self.keepdims)
@@ -141,7 +140,6 @@ class MatMul(Function):
         # which is a collection of low-level routines for performing basic linear algebra operations
         # such as matrix multiplication, vector multiplication, matrix addition, etc.
         # https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms
-        # 이게 뭐지? ㅋㅋㅋ;;
         # 이 지점에서 x.dot은 np.dot을 호출하는 것이다.
         y = x.dot(W)
         return y
@@ -154,4 +152,31 @@ class MatMul(Function):
 
 def matmul(x, W):
     return MatMul()(x, W)
+
+
+class MeanSquaredError(Function):
+    def forward(self, x0, x1):
+        diff = x0 - x1
+        return (diff ** 2).sum() / len(diff)
+        # return sum(diff ** 2) / len(diff)
+        # 이러면 안되는 이유는?
+        # sum은 numpy의 함수이고, diff ** 2는 Variable이다.
+        ## Function 클래스에서 data에 numpy array를 저장하고, sum 함수는 .data 형태로 numpy array를 호출하여 사용한다.
+        # Variable은 numpy의 함수를 호출할 수 없다.
+        # 그래서 numpy의 함수를 호출하고 싶으면, numpy의 함수를 호출한 결과를 Variable로 감싸야 한다.
+        # 그래서 위와 같이 (diff ** 2).sum()을 사용한다.
+    
+    def backward(self, gy):
+        x0, x1 = self.inputs
+        diff = x0 - x1
+        gx0 = gy * diff * (2 / len(diff))
+        gx1 = -gx0
+        return gx0, gx1
+
+def mean_squared_error(x0, x1):
+    return MeanSquaredError()(x0, x1)
+
+def mean_squared_error_simple(x0, x1):
+    diff = x0 - x1
+    return sum(diff ** 2) / len(diff)
 
