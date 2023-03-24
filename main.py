@@ -6,28 +6,56 @@ if '__file__' in globals():
     sys.path.append(PROJECT_DIR)
 
 import numpy as np
+import pandas as pd
 from dezero import Variable
 import dezero.functions as F
-from dezero.utils import plot_dot_graph
+import dezero.layers as L
 import matplotlib.pyplot as plt
 
 if __name__ == '__main__':
 
-    x = Variable(np.linspace(-7, 7, 200))
-    y = F.sin(x)
-    y.backward(create_graph=True)
+    np.random.seed(0)
+    x = np.random.rand(100, 1)
+    y = np.sin(2 * np.pi * x) + np.random.rand(100, 1)
 
-    logs = [y.data]
+    # df = pd.DataFrame({
+    #     'x': x.reshape(100,).tolist(), 'y': y.reshape(100,).tolist()
+    # })
+    # plt.figure(figsize=(10, 10))
+    # df.plot.scatter('x', 'y')
+    # plt.show()
 
-    for i in range(3):
-        logs.append(x.grad.data)
-        gx = x.grad
-        x.cleargrad()
-        gx.backward(create_graph=True)
+    l1 = L.Linear(10)
+    l2 = L.Linear(1)
+
+    def predict(x):
+        y = l1(x)
+        y = F.sigmoid(y)
+        y = l2(y)
+        return y
     
-    labels = ["y=sin(x)", "y'", "y''", "y'''"]
-    for i, v in enumerate(logs):
-        plt.plot(x.data, logs[i], label=labels[i])
-    plt.legend(loc="lower right")
-    plt.show()
+    lr = 0.2
+    iters = 10000
 
+    for i in range(iters):
+        y_pred = predict(x)
+        loss = F.mean_squared_error(y, y_pred)
+
+        l1.cleargrads()
+        l2.cleargrads()
+        loss.backward()
+
+        for l in [l1, l2]:
+            for p in l.params():
+                p.data -= lr * p.grad.data
+        if i % 1000 == 0:
+            print(loss)
+
+    final_pred = predict(x)
+
+    df = pd.DataFrame({
+        'x': x.reshape(100,).tolist(), 'y': y.reshape(100,).tolist()
+    })
+    df.plot.scatter('x', 'y')
+    plt.scatter(x, final_pred.data.reshape(100,).tolist(), color='red')
+    plt.show()

@@ -4,6 +4,7 @@ import contextlib
 import numpy as np
 import math
 
+import dezero
 
 class Config:
     enable_backprop = True
@@ -104,7 +105,25 @@ class Variable:
                     # f.outputs() 리스트가 약한 참조(weakref)이기 떄문에 y()로 사용
                     # 참조 카운트가 0이 되고 메모리에서 데이터가 삭제됨
                     y().grad = None
+    
+    def reshape(self, *shape):
+        if len(shape) == 1 and isinstance(shape[0], (tuple, list)):
+            shape = shape[0]
+        # dezero.functions에서 이미 core를 임포트해서 사용하고 있기 때문에
+        # F.reshape으로 쓰지 않음으로써 순환 임포트를 피함
+        return dezero.functions.reshape(self, shape)
+        # import dezero.functions as F
+        # return F.reshape(self, shape)
+    
+    def transpose(self):
+        return dezero.functions.transpose(self)
+    
+    @property
+    def T(self):
+        return dezero.functions.transpose(self)
 
+    def sum(self, axis=None, keepdims=False):
+        return dezero.functions.sum(self)
 
 # -----
 class Function:
@@ -138,20 +157,30 @@ class Function:
 # -----
 class Add(Function):
     def forward(self, x0, x1):
+        self.x0_shape, self.x1_shape = x0.shape, x1.shape
         y = x0 + x1
         return y
     
     def backward(self, gy):
-        return gy, gy
+        gx0, gx1 = gy, gy
+        if self.x0_shape != self.x1_shape:
+            gx0 = dezero.functions.sum_to(gx0, self.x0_shape)
+            gx1 = dezero.functions.sum_to(gx1, self.x1_shape)
+        return gx0, gx1
 
 class Mul(Function):
     def forward(self, x0, x1):
+        self.x0_shape, self.x1_shape = x0.shape, x1.shape
         y = x0 * x1
         return y
     
     def backward(self, gy):
         x0, x1 = self.inputs
-        return gy * x1, gy * x0
+        gx0, gx1 = gy * x1, gy * x0
+        if self.x0_shape != self.x1_shape:
+            gx0 = dezero.functions.sum_to(gx0, self.x0_shape)
+            gx1 = dezero.functions.sum_to(gx1, self.x1_shape)
+        return gx0, gx1
 
 class Neg(Function):
     def forward(self, x):
@@ -162,16 +191,22 @@ class Neg(Function):
 
 class Sub(Function):
     def forward(self, x0, x1):
+        self.x0_shape, self.x1_shape = x0.shape, x1.shape
         y = x0 - x1
         return y
 
     def backward(self, gy):
-        return gy, -gy
+        gx0, gx1 = gy, -gy
+        if self.x0_shape != self.x1_shape:
+            gx0 = dezero.functions.sum_to(gx0, self.x0_shape)
+            gx1 = dezero.functions.sum_to(gx1, self.x1_shape)
+        return gx0, gx1
 
 class Div(Function):
     def forward(self, x0, x1):
         if x1.data == 0:
             raise ZeroDivisionError
+        self.x0_shape, self.x1_shape = x0.shape, x1.shape
         y = x0 / x1
         return y
     
@@ -179,6 +214,9 @@ class Div(Function):
         x0, x1 = self.inputs
         gx0 = gy / x1
         gx1 = gy * (-x0 / x1 ** 2)
+        if self.x0_shape != self.x1_shape:
+            gx0 = dezero.functions.sum_to(gx0, self.x0_shape)
+            gx1 = dezero.functions.sum_to(gx1, self.x1_shape)
         return gx0, gx1
 
 class Pow(Function):
@@ -210,8 +248,9 @@ class Exp(Function):
 
     def backward(self, gy):
         x, = self.inputs
-        gx = np.exp(x) * gy
+        gx = exp(x) * gy
         return gx
+
 
 # -----
 @contextlib.contextmanager
@@ -314,3 +353,7 @@ def setup_variable():
     Variable.__truediv__ = div
     Variable.__rtruediv__ = rdiv
     Variable.__pow__ = pow
+
+
+class Parameter(Variable):
+    pass
