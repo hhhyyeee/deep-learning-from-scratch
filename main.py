@@ -7,59 +7,48 @@ if '__file__' in globals():
 
 import numpy as np
 import pandas as pd
-from dezero import Variable, Model
+
+from dezero import Variable, Model, optimizers
 import dezero.functions as F
-import dezero.layers as L
+from dezero.models import MLP
+
 import matplotlib.pyplot as plt
 
 if __name__ == '__main__':
 
     np.random.seed(0)
-    x = np.random.rand(100, 1)
-    y = np.sin(2 * np.pi * x) + np.random.rand(100, 1)
+    x = np.array([[0.2, -0.4], [0.3, 0.5], [1.3, -3.2], [2.1, 0.3]])
+    t = np.array([2, 0, 1, 0])
+
+    lr = 0.2
+    max_iter = 10000
+    hidden_size = 10
+
+    model = MLP((hidden_size, 3))
+    y = model(x)
+    loss = F.softmax_cross_entropy_simple(y, t)
+    print(loss)
+
+    # optimizer = optimizers.SGD(lr)
+    # optimizer.setup(model)
+
+    # for i in range(max_iter):
+    #     y_pred = model(x)
+    #     loss = F.mean_squared_error(y, y_pred)
+
+    #     model.cleargrads()
+    #     loss.backward()
+
+    #     optimizer.update()
+
+    #     if i % 1000 == 0:
+    #         print(loss)
+
+    # final_pred = model(x)
 
     # df = pd.DataFrame({
     #     'x': x.reshape(100,).tolist(), 'y': y.reshape(100,).tolist()
     # })
-    # plt.figure(figsize=(10, 10))
     # df.plot.scatter('x', 'y')
+    # plt.scatter(x, final_pred.data.reshape(100,).tolist(), color='red')
     # plt.show()
-
-    lr = 0.2
-    iters = 10000
-    hidden_size = 10
-
-    class TwoLayerNet(Model):
-        def __init__(self, hidden_size, out_size):
-            super().__init__()
-            self.l1 = L.Linear(hidden_size)
-            self.l2 = L.Linear(out_size)
-        
-        def forward(self, x):
-            y = self.l1(x)
-            y = F.sigmoid(y)
-            y = self.l2(y)
-            return y
-    
-    model = TwoLayerNet(hidden_size, 1)
-
-    for i in range(iters):
-        y_pred = model(x)
-        loss = F.mean_squared_error(y, y_pred)
-
-        model.cleargrads()
-        loss.backward()
-
-        for p in model.params():
-            p.data -= lr * p.grad.data
-        if i % 1000 == 0:
-            print(loss)
-
-    final_pred = model(x)
-
-    df = pd.DataFrame({
-        'x': x.reshape(100,).tolist(), 'y': y.reshape(100,).tolist()
-    })
-    df.plot.scatter('x', 'y')
-    plt.scatter(x, final_pred.data.reshape(100,).tolist(), color='red')
-    plt.show()
