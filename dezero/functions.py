@@ -185,33 +185,6 @@ def matmul(x, W):
     return MatMul()(x, W)
 
 
-class MeanSquaredError(Function):
-    def forward(self, x0, x1):
-        diff = x0 - x1
-        return (diff ** 2).sum() / len(diff)
-        # return sum(diff ** 2) / len(diff)
-        # 이러면 안되는 이유는?
-        # sum은 numpy의 함수이고, diff ** 2는 Variable이다.
-        ## Function 클래스에서 data에 numpy array를 저장하고, sum 함수는 .data 형태로 numpy array를 호출하여 사용한다.
-        # Variable은 numpy의 함수를 호출할 수 없다.
-        # 그래서 numpy의 함수를 호출하고 싶으면, numpy의 함수를 호출한 결과를 Variable로 감싸야 한다.
-        # 그래서 위와 같이 (diff ** 2).sum()을 사용한다.
-    
-    def backward(self, gy):
-        x0, x1 = self.inputs
-        diff = x0 - x1
-        gx0 = gy * diff * (2 / len(diff))
-        gx1 = -gx0
-        return gx0, gx1
-
-def mean_squared_error(x0, x1):
-    return MeanSquaredError()(x0, x1)
-
-def mean_squared_error_simple(x0, x1):
-    diff = x0 - x1
-    return sum(diff ** 2) / len(diff)
-
-
 class Linear(Function):
     def forward(self, x, W, b):
         y = x.dot(W)
@@ -304,9 +277,9 @@ class Softmax(Function):
 
     def forward(self, x):
         # xp = cuda.get_array_module(x)
-        # y = x - x.max(axis=self.axis, keepdims=True)
-        y = np.exp(x)
-        y /= np.sum(y, axis=self.axis, keepdims=True)
+        y = x - x.max(axis=self.axis, keepdims=True)
+        y = np.exp(y)
+        y /= y.sum(axis=self.axis, keepdims=True)
         return y
 
     def backward(self, gy):
@@ -316,10 +289,63 @@ class Softmax(Function):
         gx -= y * sumdx
         return gx
 
-
 def softmax(x, axis=1):
     return Softmax(axis)(x)
 
+# =============================================================================
+# loss function: mean_squared_error / softmax_cross_entropy
+# =============================================================================
+
+class MeanSquaredError(Function):
+    def forward(self, x0, x1):
+        diff = x0 - x1
+        return (diff ** 2).sum() / len(diff)
+        # return sum(diff ** 2) / len(diff)
+        # 이러면 안되는 이유는?
+        # sum은 numpy의 함수이고, diff ** 2는 Variable이다.
+        ## Function 클래스에서 data에 numpy array를 저장하고, sum 함수는 .data 형태로 numpy array를 호출하여 사용한다.
+        # Variable은 numpy의 함수를 호출할 수 없다.
+        # 그래서 numpy의 함수를 호출하고 싶으면, numpy의 함수를 호출한 결과를 Variable로 감싸야 한다.
+        # 그래서 위와 같이 (diff ** 2).sum()을 사용한다.
+    
+    def backward(self, gy):
+        x0, x1 = self.inputs
+        diff = x0 - x1
+        gx0 = gy * diff * (2 / len(diff))
+        gx1 = -gx0
+        return gx0, gx1
+
+def mean_squared_error(x0, x1):
+    return MeanSquaredError()(x0, x1)
+
+def mean_squared_error_simple(x0, x1):
+    diff = x0 - x1
+    return sum(diff ** 2) / len(diff)
+
+
+class SoftmaxCrossEntropy(Function):
+    def forward(self, x, t):
+        N = x.shape[0]
+        log_z = utils.logsumexp(x, axis=1)
+        log_p = x - log_z
+        log_p = log_p[np.arange(N), t.ravel()]
+        y = -log_p.sum() / np.float32(N)
+        return y
+
+    def backward(self, gy):
+        x, t = self.inputs
+        N, CLS_NUM = x.shape
+
+        gy *= 1/N
+        y = softmax(x)
+        # convert to one-hot
+        # xp = cuda.get_array_module(t.data)
+        t_onehot = np.eye(CLS_NUM, dtype=t.dtype)[t.data]
+        y = (y - t_onehot) * gy
+        return y
+
+def softmax_cross_entropy(x, t):
+    return SoftmaxCrossEntropy()(x, t)
 
 def softmax_cross_entropy_simple(x, t):
     x, t = as_variable(x), as_variable(t)
@@ -331,7 +357,6 @@ def softmax_cross_entropy_simple(x, t):
     tlog_p = log_p[np.arange(N), t.data]
     y = -1 * sum(tlog_p) / N
     return y
-
 
 
 # =============================================================================

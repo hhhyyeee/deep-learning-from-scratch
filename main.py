@@ -7,48 +7,64 @@ if '__file__' in globals():
 
 import numpy as np
 import pandas as pd
+import math
 
 from dezero import Variable, Model, optimizers
 import dezero.functions as F
 from dezero.models import MLP
+from dezero.datasets import get_spiral
 
 import matplotlib.pyplot as plt
 
 if __name__ == '__main__':
 
     np.random.seed(0)
-    x = np.array([[0.2, -0.4], [0.3, 0.5], [1.3, -3.2], [2.1, 0.3]])
-    t = np.array([2, 0, 1, 0])
 
-    lr = 0.2
-    max_iter = 10000
+    # 하이퍼파라미터 설정
+    max_epoch = 300
+    batch_size = 30
     hidden_size = 10
+    lr = 1.0
+
+    x, t = get_spiral(train=True)
+    VISUALIZE = False
+    if VISUALIZE:
+        colors = ['pink', 'skyblue', 'lightgreen']
+        df = pd.DataFrame({
+            'x': x[:, 0].tolist(), 'y': x[:, 1].tolist(), 't': t.tolist()
+        })
+        for idx, color in zip(range(3), colors):
+            df[df['t'] == idx].plot.scatter('x', 'y', marker='o', color=color, ax=plt.gca(), label=idx)
+        plt.show()
 
     model = MLP((hidden_size, 3))
-    y = model(x)
-    loss = F.softmax_cross_entropy_simple(y, t)
-    print(loss)
+    optimizer = optimizers.SGD(lr)
+    optimizer.setup(model)
 
-    # optimizer = optimizers.SGD(lr)
-    # optimizer.setup(model)
+    data_size = len(x)
+    max_iter = math.ceil(data_size / batch_size)
 
-    # for i in range(max_iter):
-    #     y_pred = model(x)
-    #     loss = F.mean_squared_error(y, y_pred)
+    avg_loss_list = []
+    for epoch in range(max_epoch):
+        index = np.random.permutation(data_size)
+        sum_loss = 0
 
-    #     model.cleargrads()
-    #     loss.backward()
+        for i in range(max_iter):
+            batch_index = index[i * batch_size : (i+1) * batch_size]
+            batch_x = x[batch_index]
+            batch_t = t[batch_index]
 
-    #     optimizer.update()
+            y = model(batch_x)
+            loss = F.softmax_cross_entropy(y, batch_t)
+            model.cleargrads()
+            loss.backward()
+            optimizer.update()
+            sum_loss += float(loss.data) * len(batch_t)
+        
+        avg_loss = sum_loss / data_size
+        avg_loss_list.append(avg_loss)
+        print(f"epoch {epoch+1}, loss {avg_loss:.2f}")
+    
+    plt.plot(avg_loss_list)
+    plt.show()
 
-    #     if i % 1000 == 0:
-    #         print(loss)
-
-    # final_pred = model(x)
-
-    # df = pd.DataFrame({
-    #     'x': x.reshape(100,).tolist(), 'y': y.reshape(100,).tolist()
-    # })
-    # df.plot.scatter('x', 'y')
-    # plt.scatter(x, final_pred.data.reshape(100,).tolist(), color='red')
-    # plt.show()
