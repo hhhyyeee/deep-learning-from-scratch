@@ -326,10 +326,19 @@ def mean_squared_error_simple(x0, x1):
 class SoftmaxCrossEntropy(Function):
     def forward(self, x, t):
         N = x.shape[0]
+
+        # logexpsum 함수는 max의 smooth approximation이다.
+        # 벡터에 exp를 취하게 되면 숫자가 큰 값의 영향력이 지수적으로 커지게 되는데, 이들을 덧셈하면 원래 작았던 숫자의 영향력은 매우 갑소하게 된다.
+        # 그다음 log를 취해서 exp의 역과정을 하게 되면, 사실상 영향력이 큰 숫자만 의미를 가지게 되므로 max와 유사한 기능을 한다고 볼 수 있다.
         log_z = utils.logsumexp(x, axis=1)
         log_p = x - log_z
+
+        # 정답인 log proba 값만 추출
         log_p = log_p[np.arange(N), t.ravel()]
+
+        # 미니배치 단위로 softmax cross entropy 스코어 평균내기
         y = -log_p.sum() / np.float32(N)
+
         return y
 
     def backward(self, gy):

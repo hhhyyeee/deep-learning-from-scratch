@@ -28,9 +28,24 @@ class Dataset:
     def prepare(self):
         pass
 
+
+class BigData(Dataset):
+    def __getitem__(self, index):
+        x = np.load(f'data/{index}.npy')
+        t = np.load(f'label/{index}.npy')
+        return x, t
+    
+    def __len__(self):
+        return 1000000
+
+
 # =============================================================================
 # Toy datasets
 # =============================================================================
+class Spiral(Dataset):
+    def prepare(self):
+        self.data, self.label = get_spiral(self.train)
+
 def get_spiral(train=True):
     seed = 1984 if train else 2020
     np.random.seed(seed=seed)
